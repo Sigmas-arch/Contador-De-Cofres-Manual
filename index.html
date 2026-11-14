@@ -119,24 +119,8 @@
   <button class="b" id="guardar" style="width:100%">Listo</button>
 </div></div>
 
-<!-- SDK de Firebase -->
-<script src="https://gstatic.com"></script>
-<script src="https://gstatic.com"></script>
-
 <script>
-const firebaseConfig = {
-  apiKey: "AIzaSyBb2hY3oMUt1r_QiKoyfcTFh1SEzVlVpa4",
-  authDomain: "://firebaseapp.com",
-  databaseURL: "https://firebaseio.com",
-  projectId: "cofresgithub",
-  storageBucket: "cofresgithub.firebasestorage.app",
-  messagingSenderId: "504533767543",
-  appId: "1:504533767543:web:d8233c7641a6b4b4aafd72"
-};
-
-firebase.initializeApp(firebaseConfig);
-const rtdb = firebase.database();
-
+const DB_URL = "https://firebaseio.com";
 const $=i=>document.getElementById(i);
 const K={s:'cg_ses',t:'cg_tot',h:'cg_hoy',f:'cg_fecha',n:'cg_nom',
          hi:'cg_hist',i:'cg_ini',u:'cg_uid'};
@@ -179,7 +163,6 @@ function pintar(){
     (conectado ? 'Todavía no hay nadie más. Compartí el link con tus amigos.'
         : 'Sin conexión al ranking: tu cuenta se guarda igual en este dispositivo.');
 
-  // tira con las sesiones de hoy
   const hs=deHoy();
   $('et2').textContent = 'Sesiones de hoy  ·  vas en la '+(hs.length+1)+'ª';
   const c=$('chips'); c.innerHTML='';
@@ -191,7 +174,6 @@ function pintar(){
   act.innerHTML='<i>ahora</i>'+ses; c.appendChild(act);
   c.scrollLeft=c.scrollWidth;
 
-  // mis sesiones, agrupadas por dia
   const cont=$('dias'); cont.innerHTML='';
   const porDia={};
   hist.forEach(s=>{ (porDia[s.fecha]=porDia[s.fecha]||[]).push(s); });
@@ -212,8 +194,31 @@ function pintar(){
 }
 
 function estado(txt,vivo){ $('estado').textContent=txt; $('estado').classList.toggle('vivo',!!vivo); }
-
 function guardarLocal(){ grabar(K.s,ses); grabar(K.t,tot); grabar(K.h,hoy); grabar(K.f,fecha); }
 
 async function enviar(){
-  if(!uid||!nombre){ return; }
+  if(!uid||!nombre) return;
+  if(enCurso){ pendiente=true; return; }
+  enCurso=true;
+  try{
+    const res = await fetch(`${DB_URL}/jugadores/${uid}.json`, {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({nombre, sesion:ses, hoy, total:tot, fecha, ts:Date.now()})
+    });
+    if(res.ok){
+      conectado=true;
+      estado('ranking en vivo', true);
+      actualizarRanking();
+    } else {
+      estado('error permiso ('+res.status+')');
+    }
+  }catch(e){
+    estado('sin red');
+  }
+  enCurso=false;
+  if(pendiente){ pendiente=false; setTimeout(enviar,300); }
+}
+
+async function actualizarRanking(){
+  try{
