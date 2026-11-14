@@ -119,10 +119,27 @@
   <button class="b" id="guardar" style="width:100%">Listo</button>
 </div></div>
 
+<!-- SDK de Firebase -->
+<script src="https://gstatic.com"></script>
+<script src="https://gstatic.com"></script>
+
 <script>
+const firebaseConfig = {
+  apiKey: "AIzaSyBb2hY3oMUt1r_QiKoyfcTFh1SEzVlVpa4",
+  authDomain: "://firebaseapp.com",
+  databaseURL: "https://firebaseio.com",
+  projectId: "cofresgithub",
+  storageBucket: "cofresgithub.firebasestorage.app",
+  messagingSenderId: "504533767543",
+  appId: "1:504533767543:web:d8233c7641a6b4b4aafd72"
+};
+
+firebase.initializeApp(firebaseConfig);
+const rtdb = firebase.database();
+
 const $=i=>document.getElementById(i);
 const K={s:'cg_ses',t:'cg_tot',h:'cg_hoy',f:'cg_fecha',n:'cg_nom',
-         hi:'cg_hist',i:'cg_ini'};
+         hi:'cg_hist',i:'cg_ini',u:'cg_uid'};
 const leer=(k,d)=>{try{const v=localStorage.getItem(k);return v===null?d:JSON.parse(v);}catch(e){return d;}};
 const grabar=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}};
 const hoyStr=()=>new Date().toLocaleDateString('sv');
@@ -131,10 +148,17 @@ let ses=leer(K.s,0), tot=leer(K.t,0), hoy=leer(K.h,0), fecha=leer(K.f,hoyStr());
 let nombre=leer(K.n,null);
 let hist=leer(K.hi,[]); if(!Array.isArray(hist)) hist=[];
 let inicio=leer(K.i,null);
+
+let uid=leer(K.u,null);
+if(!uid){
+  uid='jug_'+Math.random().toString(36).slice(2,10)+Date.now().toString(36);
+  grabar(K.u,uid);
+}
+
 if(fecha!==hoyStr()){ hoy=0; fecha=hoyStr(); grabar(K.h,0); grabar(K.f,fecha); }
 const deHoy=()=>hist.filter(s=>s.fecha===hoyStr());
 
-let db=null,user=null,uid=null,otros=[],pendiente=false,enCurso=false;
+let conectado=false,otros=[],pendiente=false,enCurso=false;
 
 function pintar(){
   $('n').textContent=ses;
@@ -145,13 +169,14 @@ function pintar(){
   lista.forEach(p=>{
     const tr=document.createElement('tr');
     if(p.id===uid) tr.className='mio';
-    [[p.nombre||'—',''],[p.sesion||0,'ses'],[p.hoy||0,''],[p.total||0,'']].forEach(([v,c])=>{
+    const hoyMostrar = (p.fecha===hoyStr()) ? (p.hoy||0) : 0;
+    [[p.nombre||'—',''],[p.sesion||0,'ses'],[hoyMostrar,''],[p.total||0,'']].forEach(([v,c])=>{
       const td=document.createElement('td'); td.textContent=v; if(c) td.className=c; tr.appendChild(td);
     });
     f.appendChild(tr);
   });
   $('nota').textContent = otros.length ? '' :
-    (db ? 'Todavía no hay nadie más. Compartí el link con tus amigos.'
+    (conectado ? 'Todavía no hay nadie más. Compartí el link con tus amigos.'
         : 'Sin conexión al ranking: tu cuenta se guarda igual en este dispositivo.');
 
   // tira con las sesiones de hoy
@@ -190,113 +215,5 @@ function estado(txt,vivo){ $('estado').textContent=txt; $('estado').classList.to
 
 function guardarLocal(){ grabar(K.s,ses); grabar(K.t,tot); grabar(K.h,hoy); grabar(K.f,fecha); }
 
-// una escritura por vez, y solo si algo cambio
 async function enviar(){
-  if(!db||!uid||!nombre){ return; }
-  if(enCurso){ pendiente=true; return; }
-  enCurso=true;
-  try{
-    await db.collection('jugadores').doc(uid).set({
-      nombre:nombre, sesion:ses, hoy:hoy, total:tot, fecha:fecha, ts:Date.now()
-    });
-  }catch(e){ estado('sin guardar en el ranking'); }
-  enCurso=false;
-  if(pendiente){ pendiente=false; setTimeout(enviar,400); }
-}
-let temp=null;
-function enviarPronto(){ clearTimeout(temp); temp=setTimeout(enviar,700); }
-
-function sumar(e){
-  if(!inicio){ inicio=Date.now(); grabar(K.i,inicio); }
-  ses++; tot++; hoy++;
-  guardarLocal(); pintar(); enviarPronto();
-  const caja=$('golpe').getBoundingClientRect();
-  const d=document.createElement('div'); d.className='flash'; d.textContent='+1';
-  const x=(e&&e.clientX!==undefined)?e.clientX:caja.left+caja.width/2;
-  const y=(e&&e.clientY!==undefined)?e.clientY:caja.top+caja.height/2;
-  d.style.left=(x-caja.left-16)+'px'; d.style.top=(y-caja.top-18)+'px';
-  $('golpe').appendChild(d); setTimeout(()=>d.remove(),700);
-  if(navigator.vibrate) navigator.vibrate(18);
-}
-
-$('golpe').addEventListener('click',sumar);
-$('menos').addEventListener('click',()=>{
-  if(ses>0){ ses--; if(tot>0)tot--; if(hoy>0)hoy--; guardarLocal(); pintar(); enviarPronto(); }
-});
-$('nueva').addEventListener('click',()=>{
-  if(ses>0){
-    const d=new Date();
-    hist.push({fecha:hoyStr(),
-               hora:d.toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit'}),
-               n:ses,
-               min: inicio ? Math.max(1,Math.round((Date.now()-inicio)/60000)) : 0});
-    grabar(K.hi,hist);
-  }
-  ses=0; inicio=null; grabar(K.i,null);
-  guardarLocal(); pintar(); enviarPronto();
-});
-$('ver').addEventListener('click',()=>$('panel').classList.toggle('abierto'));
-document.addEventListener('keydown',e=>{
-  if($('capa').classList.contains('abierto')) return;
-  if(e.code==='Space'||e.code==='Enter'||e.code==='NumpadEnter'){e.preventDefault();sumar();}
-  if(e.code==='Backspace'){e.preventDefault();$('menos').click();}
-});
-
-// ---- nombre
-function pedirNombre(){ $('nombre').value=nombre||''; $('err').textContent='';
-  $('capa').classList.add('abierto'); setTimeout(()=>$('nombre').focus(),50); }
-$('yo').addEventListener('click',pedirNombre);
-$('guardar').addEventListener('click',()=>{
-  const v=$('nombre').value.trim();
-  if(v.length<2){ $('err').textContent='Poné al menos 2 letras.'; return; }
-  nombre=v; grabar(K.n,v); $('capa').classList.remove('abierto'); pintar(); enviar();
-});
-$('nombre').addEventListener('keydown',e=>{ if(e.key==='Enter') $('guardar').click(); });
-
-// ---- ranking compartido
-function normalizar(snap){
-  if(!snap) return [];
-  const arr=Array.isArray(snap)?snap:(snap.docs||snap.items||snap.results||[]);
-  return arr.map(d=>{
-    const dato = typeof d.data==='function' ? d.data() : (d.data||d);
-    return Object.assign({id:d.id||d.key||dato.id||''}, dato);
-  }).filter(p=>p && p.nombre);
-}
-
-const reloj=setTimeout(()=>{ if(!db){ estado('solo en este dispositivo'); pintar(); } },10000);
-
-(async()=>{
-  try{
-    if(!window.claude||!claude.use){ estado('solo en este dispositivo'); return; }
-    const [d,u]=await Promise.all([claude.use('db'),claude.use('user')]);
-    clearTimeout(reloj);
-    if(!d||!u){ estado('solo en este dispositivo'); pintar(); return; }
-    db=d; user=u;
-    try{ uid=await u.id(); }catch(e){ uid=null; }
-    if(!uid){ estado('solo en este dispositivo'); pintar(); return; }
-    estado('ranking en vivo',true);
-
-    // recupero MI progreso guardado antes de escribir nada:
-    // si no, abrir en otro aparato pisaria la fila con ceros
-    try{
-      const mio=await db.collection('jugadores').doc(uid).get();
-      const d2=mio?(typeof mio.data==='function'?mio.data():(mio.data||mio)):null;
-      if(d2){
-        if(typeof d2.total==='number' && d2.total>tot){ tot=d2.total; ses=d2.sesion||ses; }
-        if(d2.fecha===hoyStr() && (d2.hoy||0)>hoy) hoy=d2.hoy;
-        if(d2.nombre && !nombre){ nombre=d2.nombre; grabar(K.n,nombre); }
-        guardarLocal(); pintar();
-      }
-    }catch(e){}
-
-    if(!nombre) pedirNombre(); else enviar();
-    db.collection('jugadores').onSnapshot(s=>{ otros=normalizar(s); pintar(); },
-      ()=>estado('ranking sin conexion'));
-  }catch(e){ clearTimeout(reloj); estado('solo en este dispositivo'); }
-  pintar();
-})();
-
-pintar();
-</script>
-</body>
-</html>
+  if(!uid||!nombre){ return; }
