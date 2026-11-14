@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#111110">
+<title>Cofres en grupo</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{background:#111110;color:#f2f1ec;
+    font-family:"Segoe UI",system-ui,-apple-system,Roboto,sans-serif;
+    display:flex;flex-direction:column;user-select:none;-webkit-user-select:none;
+    touch-action:manipulation;
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+  header{display:flex;justify-content:space-between;align-items:center;gap:10px;
+    padding:12px 16px;border-bottom:1px solid #2a2a26;flex:0 0 auto}
+  #yo{font-size:15px;font-weight:600;color:#f2f1ec;background:none;border:0;
+    font-family:inherit;cursor:pointer;padding:4px 0;text-align:left}
+  #yo span{color:#8d8c85;font-weight:400;font-size:12px;display:block;
+    letter-spacing:.1em;text-transform:uppercase}
+  #estado{font-size:12px;color:#8d8c85;text-align:right;white-space:nowrap}
+  #estado.vivo{color:#7CE68B}
+  #golpe{flex:1 1 auto;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;cursor:pointer;position:relative;transition:background .08s}
+  #golpe:active{background:#1a1a17}
+  #n{font-size:clamp(84px,30vw,230px);font-weight:700;line-height:.95;color:#7CE68B;
+    font-variant-numeric:tabular-nums}
+  #sub{margin-top:8px;font-size:14px;color:#8d8c85;text-align:center;padding:0 20px}
+  .flash{position:absolute;font-size:32px;font-weight:700;color:#7CE68B;
+    pointer-events:none;animation:sube .7s ease-out forwards}
+  @keyframes sube{to{transform:translateY(-70px);opacity:0}}
+  #tira{flex:0 0 auto;padding:10px 16px 12px;border-top:1px solid #2a2a26}
+  .et2{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#8d8c85;
+    display:block;margin-bottom:8px}
+  #chips{display:flex;gap:7px;overflow-x:auto;padding-bottom:2px}
+  #chips::-webkit-scrollbar{height:0}
+  .chip{flex:0 0 auto;min-width:46px;text-align:center;padding:7px 11px;border-radius:10px;
+    background:#1b1b18;border:1px solid #2e2e29;font-size:15px;color:#c9c8c1;
+    font-variant-numeric:tabular-nums}
+  .chip i{font-style:normal;display:block;font-size:10px;color:#6c6b66;letter-spacing:.06em}
+  .chip.ahora{background:#14301d;border-color:#2d6b43;color:#7CE68B;font-weight:600}
+  .chip.ahora i{color:#4e9a68}
+  footer{flex:0 0 auto;display:flex;gap:9px;padding:12px 14px 16px;border-top:1px solid #2a2a26}
+  button.b{flex:1;padding:15px 8px;border:1px solid #33332e;border-radius:12px;
+    background:#1c1c19;color:#d8d7d0;font-size:15px;font-family:inherit;cursor:pointer}
+  button.b:active{background:#2a2a25}
+  #panel{display:none;padding:2px 16px 16px;max-height:46vh;overflow:auto;
+    border-top:1px solid #2a2a26}
+  #panel.abierto{display:block}
+  .titulo{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#8d8c85;
+    padding:16px 0 2px;display:block}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th{text-align:right;color:#8d8c85;font-weight:400;font-size:11px;text-transform:uppercase;
+    letter-spacing:.1em;padding:10px 0 6px}
+  th:first-child{text-align:left}
+  td{padding:8px 0;border-top:1px solid #222220;color:#d8d7d0;text-align:right;
+    font-variant-numeric:tabular-nums}
+  td:first-child{text-align:left;color:#f2f1ec}
+  tr.mio td{color:#7CE68B}
+  td.ses{font-weight:600}
+  .dia{display:flex;justify-content:space-between;align-items:baseline;
+    padding:12px 0 4px;border-top:1px solid #222220}
+  .dia b{font-size:14px;font-weight:600;color:#f2f1ec}
+  .dia span{font-size:12px;color:#8d8c85}
+  .ses-item{display:flex;justify-content:space-between;padding:6px 0 6px 2px;font-size:14px}
+  .ses-item span{color:#8d8c85}
+  .ses-item b{color:#7CE68B;font-weight:600;font-variant-numeric:tabular-nums}
+  .nota{color:#6c6b66;font-size:13px;padding:12px 0;line-height:1.5}
+  #capa{position:fixed;inset:0;background:rgba(10,10,9,.93);display:none;
+    align-items:center;justify-content:center;padding:24px;z-index:9}
+  #capa.abierto{display:flex}
+  .caja{width:100%;max-width:340px}
+  .caja h2{font-size:17px;font-weight:500;margin-bottom:6px}
+  .caja p{font-size:13px;color:#8d8c85;margin-bottom:14px;line-height:1.5}
+  #nombre{width:100%;padding:13px 14px;border-radius:10px;border:1px solid #3a3a34;
+    background:#1b1b18;color:#f2f1ec;font-size:16px;font-family:inherit;margin-bottom:10px}
+  #err{color:#E24B4A;font-size:13px;min-height:18px;margin-bottom:6px}
+</style>
+</head>
+<body>
+
+<header>
+  <button id="yo"><span>Vos</span><i id="minombre" style="font-style:normal">—</i></button>
+  <div id="estado">conectando…</div>
+</header>
+
+<div id="golpe">
+  <div id="n">0</div>
+  <div id="sub">Tocá en cualquier parte para sumar un cofre</div>
+</div>
+
+<div id="tira">
+  <span class="et2" id="et2">Sesiones de hoy</span>
+  <div id="chips"></div>
+</div>
+
+<div id="panel">
+  <span class="titulo">Ranking</span>
+  <table>
+    <thead><tr><th>Jugador</th><th>Sesión</th><th>Hoy</th><th>Total</th></tr></thead>
+    <tbody id="filas"></tbody>
+  </table>
+  <div class="nota" id="nota"></div>
+  <span class="titulo">Mis sesiones</span>
+  <div id="dias"></div>
+  <div class="nota" id="sinses">Todavía no cerraste ninguna sesión.</div>
+</div>
+
+<footer>
+  <button class="b" id="menos">− 1</button>
+  <button class="b" id="nueva">Nueva sesión</button>
+  <button class="b" id="ver">Ranking</button>
+</footer>
+
+<div id="capa"><div class="caja">
+  <h2>¿Cómo te llamás?</h2>
+  <p>Es el nombre que van a ver los demás en el ranking.</p>
+  <input id="nombre" maxlength="18" placeholder="Tu nombre" autocomplete="off">
+  <div id="err"></div>
+  <button class="b" id="guardar" style="width:100%">Listo</button>
+</div></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, signInAnonymously, onAuthStateChanged }
+  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFirestore, doc, getDoc, setDoc, collection, onSnapshot }
+  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBb2hY3oMUt1r_QiKoyfcTFh1SEzVlVpa4",
+  authDomain: "cofresgithub.firebaseapp.com",
+  projectId: "cofresgithub",
+  storageBucket: "cofresgithub.firebasestorage.app",
+  messagingSenderId: "504533767543",
+  appId: "1:504533767543:web:c38b8c6e4e72090caafd72"
+};
+
+const $=i=>document.getElementById(i);
+const K={s:'cg_ses',t:'cg_tot',h:'cg_hoy',f:'cg_fecha',n:'cg_nom',hi:'cg_hist',i:'cg_ini'};
+const leer=(k,d)=>{try{const v=localStorage.getItem(k);return v===null?d:JSON.parse(v);}catch(e){return d;}};
+const grabar=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}};
+const hoyStr=()=>new Date().toLocaleDateString('sv');
+
+let ses=leer(K.s,0), tot=leer(K.t,0), hoy=leer(K.h,0), fecha=leer(K.f,hoyStr());
+let nombre=leer(K.n,null);
+let hist=leer(K.hi,[]); if(!Array.isArray(hist)) hist=[];
+let inicio=leer(K.i,null);
+if(fecha!==hoyStr()){ hoy=0; fecha=hoyStr(); grabar(K.h,0); grabar(K.f,fecha); }
+const deHoy=()=>hist.filter(s=>s.fecha===hoyStr());
+
+let db=null, uid=null, otros=[], enCurso=false, pendiente=false;
+
+function estado(t,vivo){ $('estado').textContent=t; $('estado').classList.toggle('vivo',!!vivo); }
+function guardarLocal(){ grabar(K.s,ses);grabar(K.t,tot);grabar(K.h,hoy);grabar(K.f,fecha); }
+
+function pintar(){
+  $('n').textContent=ses;
+  $('minombre').textContent=nombre||'sin nombre';
+  $('sub').textContent='Hoy llevás '+hoy+'  ·  total '+tot;
+
+  const f=$('filas'); f.innerHTML='';
+  otros.slice().sort((a,b)=>(b.hoy||0)-(a.hoy||0)||(b.total||0)-(a.total||0)).forEach(p=>{
+    const tr=document.createElement('tr');
+    if(p.id===uid) tr.className='mio';
+    [[p.nombre||'—',''],[p.sesion||0,'ses'],[p.hoy||0,''],[p.total||0,'']].forEach(([v,c])=>{
+      const td=document.createElement('td'); td.textContent=v; if(c) td.className=c; tr.appendChild(td);
+    });
+    f.appendChild(tr);
+  });
+  $('nota').textContent = otros.length ? '' :
+    (db ? 'Todavía no hay nadie más. Compartí el link con tus amigos.'
+        : 'Sin conexión al ranking: tu cuenta se guarda igual en este dispositivo.');
+
+  const hs=deHoy();
+  $('et2').textContent='Sesiones de hoy  ·  vas en la '+(hs.length+1)+'ª';
+  const c=$('chips'); c.innerHTML='';
+  hs.forEach((s,i)=>{const d=document.createElement('div');d.className='chip';
+    d.innerHTML='<i>'+(i+1)+'ª</i>'+s.n;c.appendChild(d);});
+  const act=document.createElement('div'); act.className='chip ahora';
+  act.innerHTML='<i>ahora</i>'+ses; c.appendChild(act);
+  c.scrollLeft=c.scrollWidth;
+
+  const cont=$('dias'); cont.innerHTML='';
+  const porDia={}; hist.forEach(s=>{(porDia[s.fecha]=porDia[s.fecha]||[]).push(s);});
+  Object.keys(porDia).sort().reverse().slice(0,14).forEach(f2=>{
+    const lista=porDia[f2], suma=lista.reduce((a,s)=>a+s.n,0);
+    const cab=document.createElement('div'); cab.className='dia';
+    cab.innerHTML='<b>'+(f2===hoyStr()?'Hoy':f2)+'</b><span>'+lista.length+
+      (lista.length===1?' sesión':' sesiones')+'  ·  '+suma+' cofres</span>';
+    cont.appendChild(cab);
+    lista.forEach((s,i)=>{
+      const fila=document.createElement('div'); fila.className='ses-item';
+      fila.innerHTML='<span>'+(i+1)+'ª  ·  '+(s.hora||'')+
+        (s.min?'  ·  '+s.min+' min':'')+'</span><b>'+s.n+'</b>';
+      cont.appendChild(fila);
+    });
+  });
+  $('sinses').style.display = hist.length ? 'none' : 'block';
+}
+
+async function enviar(){
+  if(!db||!uid||!nombre) return;
+  if(enCurso){ pendiente=true; return; }
+  enCurso=true;
+  try{
+    await setDoc(doc(db,'jugadores',uid),
+      {nombre:nombre, sesion:ses, hoy:hoy, total:tot, fecha:fecha, ts:Date.now()});
+  }catch(e){ estado('sin guardar en el ranking'); }
+  enCurso=false;
+  if(pendiente){ pendiente=false; setTimeout(enviar,400); }
+}
+let temp=null;
+const enviarPronto=()=>{ clearTimeout(temp); temp=setTimeout(enviar,700); };
+
+function sumar(e){
+  if(!inicio){ inicio=Date.now(); grabar(K.i,inicio); }
+  ses++; tot++; hoy++;
+  guardarLocal(); pintar(); enviarPronto();
+  const caja=$('golpe').getBoundingClientRect();
+  const d=document.createElement('div'); d.className='flash'; d.textContent='+1';
+  const x=(e&&e.clientX!==undefined)?e.clientX:caja.left+caja.width/2;
+  const y=(e&&e.clientY!==undefined)?e.clientY:caja.top+caja.height/2;
+  d.style.left=(x-caja.left-16)+'px'; d.style.top=(y-caja.top-18)+'px';
+  $('golpe').appendChild(d); setTimeout(()=>d.remove(),700);
+  if(navigator.vibrate) navigator.vibrate(18);
+}
+
+$('golpe').addEventListener('click',sumar);
+$('menos').addEventListener('click',()=>{
+  if(ses>0){ ses--; if(tot>0)tot--; if(hoy>0)hoy--; guardarLocal(); pintar(); enviarPronto(); }
+});
+$('nueva').addEventListener('click',()=>{
+  if(ses>0){
+    const d=new Date();
+    hist.push({fecha:hoyStr(),
+      hora:d.toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit'}),
+      n:ses, min: inicio?Math.max(1,Math.round((Date.now()-inicio)/60000)):0});
+    grabar(K.hi,hist);
+  }
+  ses=0; inicio=null; grabar(K.i,null);
+  guardarLocal(); pintar(); enviarPronto();
+});
+$('ver').addEventListener('click',()=>$('panel').classList.toggle('abierto'));
+document.addEventListener('keydown',e=>{
+  if($('capa').classList.contains('abierto')) return;
+  if(e.code==='Space'||e.code==='Enter'||e.code==='NumpadEnter'){e.preventDefault();sumar();}
+  if(e.code==='Backspace'){e.preventDefault();$('menos').click();}
+});
+
+function pedirNombre(){ $('nombre').value=nombre||''; $('err').textContent='';
+  $('capa').classList.add('abierto'); setTimeout(()=>$('nombre').focus(),50); }
+$('yo').addEventListener('click',pedirNombre);
+$('guardar').addEventListener('click',()=>{
+  const v=$('nombre').value.trim();
+  if(v.length<2){ $('err').textContent='Poné al menos 2 letras.'; return; }
+  nombre=v; grabar(K.n,v); $('capa').classList.remove('abierto'); pintar(); enviar();
+});
+$('nombre').addEventListener('keydown',e=>{ if(e.key==='Enter') $('guardar').click(); });
+
+pintar();
+
+// ---- Firebase
+(async()=>{
+  try{
+    const app=initializeApp(firebaseConfig);
+    const auth=getAuth(app);
+    db=getFirestore(app);
+    await signInAnonymously(auth);
+    onAuthStateChanged(auth, async u=>{
+      if(!u){ estado('sin conexion'); db=null; pintar(); return; }
+      uid=u.uid;
+      estado('ranking en vivo',true);
+      // recupero mi fila antes de escribir, para no pisarla con ceros
+      try{
+        const snap=await getDoc(doc(db,'jugadores',uid));
+        if(snap.exists()){
+          const d2=snap.data();
+          if(typeof d2.total==='number' && d2.total>tot){ tot=d2.total; ses=d2.sesion||ses; }
+          if(d2.fecha===hoyStr() && (d2.hoy||0)>hoy) hoy=d2.hoy;
+          if(d2.nombre && !nombre){ nombre=d2.nombre; grabar(K.n,nombre); }
+          guardarLocal(); pintar();
+        }
+      }catch(e){}
+      if(!nombre) pedirNombre(); else enviar();
+      onSnapshot(collection(db,'jugadores'),
+        s=>{ otros=s.docs.map(d=>Object.assign({id:d.id},d.data())).filter(p=>p.nombre); pintar(); },
+        ()=>estado('ranking sin conexion'));
+    });
+  }catch(e){ db=null; estado('solo en este dispositivo'); pintar(); }
+})();
+setTimeout(()=>{ if(!uid) estado('solo en este dispositivo'); },10000);
+</script>
+</body>
+</html>
